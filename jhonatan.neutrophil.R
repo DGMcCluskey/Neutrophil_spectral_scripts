@@ -187,8 +187,9 @@ sce <- runDR(sce, "UMAP", features = NULL)
 
 saveRDS(sce, file = "neuts.clustered.rds", compress = F)
 table(sce$neut, sce$donor_id)
-sce <- readRDS(file = "neutrophils.clustered.rds")
-
+getwd()
+sce <- readRDS(file = "neuts.clustered.rds")
+format(object.size(data), units = "auto")
 #order groups so that easier to interpret
 
 
@@ -224,22 +225,24 @@ markers.input <- markers$antigen
 plotDR(sce, color_by = markers.input)
 plotDR(sce, color_by = "neut")+facet_wrap(~ratio)
 
+plotExprs(sce, features = c("Live_dead", "CD4"), color_by = "donor_id")
 
 
 #SECOND CLUSTERING=========================================================
-#based on the non-redundancy scores, some markers barely contribute to clustering
-# i will see what happens if i re-cluster using only the top 10 most meaningful markers
+#there are some small island clusters i believe represent dead cells, so will remove these
 
 #whilst here I'll also exclude debris clusters if identifiable
-plotPbExprs(sce, k = "meta20", color_by = "cluster_id", group_by = "cluster_id", facet_by = "antigen",
+plotPbExprs(sce, k = "meta10", color_by = "cluster_id", group_by = "cluster_id", facet_by = "antigen",
             features = NULL)
 
-#cluster 12 (in meta20) has very low CD66b and high CD45, probably non-neutrophil
-sce <- sce[, sce$k20 != "12"]
+sce <- filterSCE(sce, k = "meta10", cluster_id %in% c(3,4,7,8,9))
 
-sce <- CATALYST::cluster(sce, features = c("AnnexinV", "CD16", "CD11b", "CD38", "CD66b",
-                                           "CD62L", "Live_dead", "CD33", "CD101", "CD11a"),
-                         xdim = 10, ydim = 10, maxK = 30, verbose = T, seed = 61)
+plotDR(sce, "UMAP", color_by = "meta10")+
+  geom_scattermore()+theme_bw()
+
+sce <- CATALYST::cluster(sce, features = c("CD49d", "CD62L", "CD69", "CXCR4", "CD28",
+"CCR7", "HLA-DR", "CD25", "CD45RA", "CD27", "CD45RO"),
+xdim = 10, ydim = 10, maxK = 30, verbose = T, seed = 61)
 
 delta <- delta_area(sce)
 delta <- delta$data
@@ -252,8 +255,8 @@ ggplot(delta, aes(x = k, y = y))+geom_point(size = 5)+geom_line(linewidth = 1.5)
 
 
 
-sce <- runDR(sce, "UMAP", features = c("AnnexinV", "CD16", "CD11b", "CD38", "CD66b",
-                                       "CD62L", "Live_dead", "CD33", "CD101", "CD11a"))
+sce <- runDR(sce, "UMAP", features = c("CD49d", "CD62L", "CD69", "CXCR4", "CD28",
+"CCR7", "HLA-DR", "CD25", "CD45RA", "CD27", "CD45RO"))
 
 
 res <- c("meta10", "meta15", "meta20", "meta25")
