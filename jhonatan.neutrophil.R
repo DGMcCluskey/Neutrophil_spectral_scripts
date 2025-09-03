@@ -135,7 +135,7 @@ library(RColorBrewer)
 n <- 60
 qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
 col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
-pie(rep(1,n), col=sample(col_vector, n))
+#pie(rep(1,n), col=sample(col_vector, n))
 
 
 #plotting number of cells in each sample
@@ -153,6 +153,8 @@ pbMDS(sce, by = "sample_id", color_by = "donor_id", shape_by = "ratio", label_by
 
 pbMDS(sce, by = "sample_id", color_by = "patient_id", shape_by = "time", label_by = NULL)+
   theme_bw()+scale_colour_manual(values = col_vector)+geom_point(size = 5)
+
+table(sce$sample_id)
 
 #HARMONY BATCH CORRECTION - don't do until more than one patient
 expdata <- sce@assays@data$exprs
