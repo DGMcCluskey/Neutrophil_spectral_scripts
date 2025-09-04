@@ -259,7 +259,7 @@ sce <- runDR(sce, "UMAP", features = c("CD49d", "CD62L", "CD69", "CXCR4", "CD28"
 "CCR7", "HLA-DR", "CD25", "CD45RA", "CD27", "CD45RO"))
 
 
-res <- c("meta10", "meta15", "meta20", "meta25")
+res <- c("meta3", "meta5", "meta7", "meta10")
 umaps <- list()
 
 for (i in res) {
@@ -267,7 +267,7 @@ for (i in res) {
     geom_scattermore()
 } 
 
-p <- plot_grid(umaps$meta10, umaps$meta15, umaps$meta20, umaps$meta25)
+p <- plot_grid(umaps$meta3, umaps$meta5, umaps$meta7, umaps$meta10)
 
 ggsave(plot = p, filename = "umaps.k.comparison.2ndclustering.png", dpi = 500,
        height = 10, width = 14)
@@ -284,60 +284,7 @@ ggsave(plot = p3, filename = "UMAP.marker.expression.2ndclustering.png", dpi = 5
        height = 14, width = 18)
 
 saveRDS(sce, file ="neuts_2nd_clustering.rds", compress = F)
-#3rd clustering===========================================================================================
-#the small "island" population that looks like debris finally mostly forms a single cluster
-#it's also a reasonable number of cells (~3000)
-#i will remove this and do one more round of clustering
-#using a low k (k10) to get as many of these as possible
-#also other tiny island have formed their own clusters so removing these as well
-sce <- sce[, !(sce$k10 %in% c("8", "2", "9", "7", "6"))]
 
-sce <- CATALYST::cluster(sce, features = c("AnnexinV", "CD16", "CD11b", "CD38", "CD66b",
-                                           "CD62L", "Live_dead", "CD33", "CD101", "CD11a"),
-                         xdim = 10, ydim = 10, maxK = 30, verbose = T, seed = 61)
-
-delta <- delta_area(sce)
-delta <- delta$data
-
-ggplot(delta, aes(x = k, y = y))+geom_point(size = 5)+geom_line(linewidth = 1.5)+
-  theme_classic()+
-  theme(axis.text = element_text(colour = "black", size = 18), 
-        axis.title = element_text(size = 18, colour = "black"))+
-  xlab("K (number of clusters)")+ylab("Relative change in \n area under CDF curve")
-
-
-
-sce <- runDR(sce, "UMAP", features = c("AnnexinV", "CD16", "CD11b", "CD38", "CD66b",
-                                       "CD62L", "Live_dead", "CD33", "CD101", "CD11a"))
-
-
-res <- c("meta5", "meta8", "meta10", "meta12")
-umaps <- list()
-
-for (i in res) {
-  umaps[[i]] <- plotDR(sce, "UMAP", color_by = i)+theme_bw()+
-    geom_scattermore()
-} 
-
-p <- plot_grid(umaps$meta5, umaps$meta8, umaps$meta10, umaps$meta12)
-
-ggsave(plot = p, filename = "umaps.k.comparison.3rdclustering.png", dpi = 500,
-       height = 10, width = 14)
-
-
-markers.input <- markers$antigen
-
-p3 <- plotDR(sce, "UMAP", color_by = markers.input)+theme_bw()+
-  geom_scattermore()+scale_colour_viridis(option = "B")+theme(strip.text = element_text(size = 16, colour = "black",
-                                                                                        face = "bold"))
-p3
-
-ggsave(plot = p3, filename = "UMAP.marker.expression.3rdclustering.png", dpi = 500,
-       height = 14, width = 18)
-
-#check even higher k to see if the cd62l will split
-plotDR(sce, "UMAP", color_by = "meta20")+theme_bw()+
-  geom_scattermore()
 
 
 #run clustree to view when certain clusters split at each k
@@ -352,26 +299,20 @@ sce$k12 <- cluster_ids(sce, "meta12")
 sce$k13 <- cluster_ids(sce, "meta13")
 sce$k14 <- cluster_ids(sce, "meta14")
 sce$k15 <- cluster_ids(sce, "meta15")
-sce$k16 <- cluster_ids(sce, "meta16")
-sce$k17 <- cluster_ids(sce, "meta17")
-sce$k18 <- cluster_ids(sce, "meta18")
-sce$k19 <- cluster_ids(sce, "meta19")
-sce$k20 <- cluster_ids(sce, "meta20")
-sce$k25 <- cluster_ids(sce, "meta25")
-sce$k30 <- cluster_ids(sce, "meta30")
+
 
 clustree::clustree(sce, prefix = "k")
 
 
 #check number of cells in each cluster
-counts <- table(cluster_ids(sce, "meta10"))
+counts <- table(cluster_ids(sce, "meta5"))
 counts
 
 
 markers.input <- markers$antigen
 
 hm <- plotExprHeatmap(sce, features = markers.input, 
-                      by = "cluster_id", k = "meta10", bars = T, perc = T, scale = "last",
+                      by = "cluster_id", k = "meta7", bars = T, perc = T, scale = "last",
                       col_clust = F, hm_pal = rev(hcl.colors(10, "Reds")))
 
 hm <- hm@matrix
@@ -396,29 +337,28 @@ saveRDS(sce, file = "neuts.3rdclustering.annotated.rds", compress = F)
 sce <- readRDS("neuts.3rdclustering.annotated.rds")
 
 plotPbExprs(sce, features = "type", group_by = "cluster_id", k = "labels")
+
+table(sce$)
 #============================================================================================================================
 #pulling out data to use for plotting
 #first get data from catalyst object and make it into a dataframe
 #will also add different resolutions (narrowed down based on clustree)
 rm(neut.data)
 ex <- assay(sce, "exprs")
-neut.data <- data.frame(t(ex), sample_id = sce$sample_id, patient = sce$patient_id, 
-                        condition = sce$condition, time = sce$time, 
-                        treatment = sce$treatment, k5 = sce$k5,
+neut.data <- data.frame(t(ex), sample_id = sce$sample_id, donor = sce$donor_id, 
+                        neut = sce$neut, ratio = sce$ratio, 
+                        k5 = sce$k5,
                         k6 = sce$k6, k7 = sce$k7,
                         k8 = sce$k8, k9 = sce$k9,
                         k10 = sce$k10, k11 = sce$k11,
                         k12 = sce$k12, k13 = sce$k13,
-                        k14 = sce$k14, k15 = sce$k15,
-                        k16 = sce$k16, k17 = sce$k17,
-                        k18 = sce$k18,  k19 = sce$k19,
-                        k20 = sce$k20, labels = sce$labels)
+                        k14 = sce$k14, k15 = sce$k15)
 #add umap dimensions
 umap.coords <- data.frame(reducedDim(sce, "UMAP"))
 neut.data$UMAP_1 <- umap.coords$UMAP1
 neut.data$UMAP_2 <- umap.coords$UMAP2
 
-write.csv(neut.data, file = "neutrophil.df.csv")
+write.csv(neut.data, file = "t.cell.df.csv")
 
 
 old.cluster.palette <- c("indianred2", "cyan4", "steelblue2", "mediumvioletred", "blue", "mediumseagreen", "darkorchid2",
@@ -427,31 +367,31 @@ old.cluster.palette <- c("indianred2", "cyan4", "steelblue2", "mediumvioletred",
 cluster.palette <- c("orange", "indianred2", "mediumseagreen", "cyan3", "steelblue2", "blue", "darkred", "black")
 
 label_data <- neut.data %>%
-  group_by(labels) %>%
+  group_by(k10) %>%
   summarise(UMAP_1 = median(UMAP_1), UMAP_2 = median(UMAP_2), .groups = "drop")
 
-p <- ggplot(neut.data, aes(x = UMAP_1, y = UMAP_2, colour=labels, fill = labels))+geom_scattermore(pointsize = 1)+
-  scale_colour_manual(values = c(cluster.palette,col_vector))+
-  scale_fill_manual(values = c(cluster.palette,col_vector))+
-  geom_label_repel(data = label_data, aes(label = labels), colour = "white", force_pull = 0.1, force = 5)+
+p <- ggplot(neut.data, aes(x = UMAP_1, y = UMAP_2, colour=k10, fill = k10))+geom_scattermore(pointsize = 1)+
+  scale_colour_manual(values = c(old.cluster.palette))+
+  scale_fill_manual(values = c(old.cluster.palette))+
+  geom_label_repel(data = label_data, aes(label = k10), colour = "white", force_pull = 0.1, force = 5)+
   theme_void()#+facet_wrap(~patient)
 p
 
-ggsave(plot = p, filename = "UMAP.annotated.png", dpi = 500,
+ggsave(plot = p, filename = "UMAP.annotated.k10.png", dpi = 500,
        height = 6, width = 10)
 
 
-p <- ggplot(neut.data, aes(x = UMAP_1, y = UMAP_2, colour=labels, fill = labels))+geom_scattermore(pointsize = 1)+
-  scale_colour_manual(values = c(cluster.palette,col_vector))+
-  scale_fill_manual(values = c(cluster.palette,col_vector))+
-  theme_bw()+facet_wrap(~patient, ncol = 1)+theme(strip.text = element_text(size = 12, colour = "black", face = "bold"))
+p <- ggplot(neut.data, aes(x = UMAP_1, y = UMAP_2, colour=k10, fill = k10))+geom_scattermore(pointsize = 2)+
+  scale_colour_manual(values = c(old.cluster.palette))+
+  scale_fill_manual(values = c(old.cluster.palette))+
+  theme_bw()+facet_wrap(~donor+neut, ncol = 4)+theme(strip.text = element_text(size = 12, colour = "black", face = "bold"))
 p
 
 ggsave(plot = p, filename = "UMAP.annotated.patient.png", dpi = 500,
-       height = 12, width = 8)
+       height = 8, width = 10)
 
 
-hm <- plotExprHeatmap(sce, by = "cluster_id", k = "labels", bars = T, perc = T, row_dend = F, col_dend = F,
+hm <- plotExprHeatmap(sce, by = "cluster_id", k = "meta10", bars = T, perc = T, row_dend = F, col_dend = F,
                       k_pal = cluster.palette)
 
 hm
@@ -460,7 +400,7 @@ hm <- hm@matrix
 
 hm2 <- pheatmap::pheatmap(hm, scale = "column", color = rev(hcl.colors(100, "RdBu")), border_color = "black",
                           cluster_cols = T, cluster_rows = T, treeheight_col = 0, 
-                          cellheight = 20, cellwidth = 20)
+                          cellheight = 30, cellwidth = 30)
 
 ggsave(plot = p2, filename = "heatmap.annotated.png", dpi = 500,
        height = 8, width = 16)
@@ -485,10 +425,10 @@ ggsave(plot = p, filename = "toal.neuts.umap.png", dpi = 500,
 
 #marker boxplot expression
 
-neut.data2 <- pivot_longer(neut.data, names_to = "marker", values_to = "expression", 1:22)
+neut.data2 <- pivot_longer(neut.data, names_to = "marker", values_to = "expression", 1:14)
 
-p <- ggplot(neut.data2, aes(x = labels, y = expression, fill = labels))+geom_boxplot(outlier.shape = NA)+
-  theme_bw()+scale_fill_manual(values = cluster.palette)+facet_wrap(~marker, scales = "free_y", ncol = 11)+
+p <- ggplot(neut.data2, aes(x = k10, y = expression, fill = k10))+geom_boxplot(outlier.shape = NA)+
+  theme_bw()+scale_fill_manual(values = old.cluster.palette)+facet_wrap(~marker, scales = "free_y", ncol = 7)+
   theme(strip.text = element_text(size = 12, colour = "black", face = "bold"))+
   theme(legend.position = "none")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 14))
@@ -498,7 +438,7 @@ ggsave(plot = p, filename = "cluster.boxplot.expression.png", dpi = 500,
        height = 4, width = 12)
 
 #violin
-p.violin <- ggplot(neut.data2, aes(x = labels, y = expression, fill = labels))+geom_violin(scale = "width", trim = T)+
+p.violin <- ggplot(neut.data2, aes(x = k10, y = expression, fill = k10))+geom_violin(scale = "width", trim = T)+
   facet_grid(rows = vars(marker), scales = "free", switch = "y")+theme_cowplot()+
   scale_y_continuous(expand = c(0, 0), position="right", labels = function(x)
     c(rep(x = "", times = length(x)-2), x[length(x) - 1], ""))+
@@ -508,7 +448,7 @@ p.violin <- ggplot(neut.data2, aes(x = labels, y = expression, fill = labels))+g
         strip.background = element_blank(),
         strip.text = element_text(face = "bold"),
         strip.text.y.left = element_text(angle = 0, size = 14))+
-  scale_fill_manual(values = cluster.palette)+
+  scale_fill_manual(values = old.cluster.palette)+
   theme(axis.text.x = element_text(size = 14, colour = "black", angle = 45, hjust = 1))
 p.violin
 
