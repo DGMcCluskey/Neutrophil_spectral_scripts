@@ -527,29 +527,44 @@ ggsave(plot = p.violin, filename = "violin.plot.annotated.png", dpi = 500, bg = 
 
 
 #proportions total
-proportions <- neut.data %>% group_by(k10, neut, ratio, donor) %>% dplyr::count(k10, neut, ratio, donor)
-proportions <- pivot_wider(proportions, names_from = k10, values_from = n)
+proportions <- neut.data %>% group_by(k5, neut, ratio, donor) %>% dplyr::count(k5, neut, ratio, donor)
+proportions <- pivot_wider(proportions, names_from = k5, values_from = n)
 proportions[is.na(proportions)] <- 0
-proportions <- pivot_longer(proportions, names_to = "cluster", values_to = "number", 4:13)
+proportions <- pivot_longer(proportions, names_to = "cluster", values_to = "number", 4:8)
 proportions <- proportions
 
 proportions$neut <- factor(proportions$neut, levels = c("none", "young", "mature", "aged"))
 
-p1 <- ggplot(proportions, aes(x = neut, y = number, fill = cluster))+geom_col(position = "dodge")+theme_bw()+
-  scale_fill_manual(values = old.cluster.palette)+facet_wrap(~donor)+
+proportions$condition <- paste0(proportions$neut, "_", proportions$ratio)
+
+proportions$condition <- factor(proportions$condition, levels = c("none_none",
+"young_1", "young_2", "young_3", 
+"mature_1", "mature_2", "mature_3",
+"aged_1", "aged_2", "aged_3"))
+
+p1 <- ggplot(proportions, aes(x = ratio, y = number, fill = cluster))+geom_col(position = "dodge")+theme_bw()+
+  scale_fill_manual(values = k5_cols)+facet_wrap(~donor+neut, scales = "free_x", ncol = 4)+
   scale_y_continuous(expand = c(0,0), limits = c(0,100000))+
-  theme(axis.text = element_text(size = 12, colour = "black"))+xlab("Patient")+ylab("absolute number of cells")
+  theme(axis.text = element_text(size = 12, colour = "black"))+xlab("Patient")+ylab("absolute number of cells")+
+  theme(axis.text.x = element_text(size = 12, colour = "black", angle = 45, hjust = 1))+
+  theme(strip.text = element_text(size = 14, colour = "black", face = "bold"))+
+  theme(axis.title = element_text(size = 16, colour = "black", face = "bold"))+
+  xlab("neutrophil:T cell ratio")+ylim(0,75000)
 p1
 
-p2 <- ggplot(proportions, aes(x = neut, y = number, fill = cluster))+geom_col(position = "fill")+theme_bw()+
-  scale_fill_manual(values = old.cluster.palette)+facet_wrap(~donor, scales = "free")+
-  theme(axis.text = element_text(size = 12, colour = "black"))+xlab(NULL)+ylab("% of cells")
+p2 <- ggplot(proportions, aes(x = ratio, y = number, fill = cluster))+geom_col(position = "fill")+theme_bw()+
+  scale_fill_manual(values = k5_cols)+facet_wrap(~donor+neut, scales = "free_x", ncol = 4)+
+  theme(axis.text = element_text(size = 12, colour = "black"))+xlab(NULL)+ylab("% of cells")+
+  theme(axis.text.x = element_text(size = 12, colour = "black", angle = 45, hjust = 1))+
+  theme(strip.text = element_text(size = 14, colour = "black", face = "bold"))+
+  theme(axis.title = element_text(size = 16, colour = "black", face = "bold"))+
+  xlab("neutrophil:T cell ratio")
 p2
 
-combo <- p1+p2+plot_layout(ncol = 2)
+combo <- p1+theme(legend.position = "none")+p2+plot_layout(ncol = 2)
 combo
-ggsave(plot = combo, filename = "neutrophil.numbers.proportions.png", dpi = 500,
-       height = 5, width = 10)
+ggsave(plot = combo, filename = "t_cell_numbers_proportions.png", dpi = 500,
+       height = 6, width = 12)
 #stacked bar plot of proportions
 #neut.1 <- filter(neut.data, patient %in% c("3"))
 proportions <- neut.data %>% group_by(labels, time, treatment) %>% dplyr::count(labels)
