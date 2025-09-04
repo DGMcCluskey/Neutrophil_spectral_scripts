@@ -415,12 +415,13 @@ ggplot(neut.data2, aes(x = k16, y = expression, fill = k16))+geom_violin(scale =
 
 
 p <- ggplot(neut.data, aes(x = UMAP_1, y = UMAP_2, colour=k5))+geom_scattermore(pointsize = 2)+
-  scale_colour_manual(values = c("indianred2", "steelblue2", "mediumseagreen", "orange", "hotpink"))+facet_wrap(~donor)+
-  theme_bw()
+  scale_colour_manual(values = c("indianred2", "steelblue2", "mediumseagreen", "orange", "hotpink"))+facet_wrap(~donor, ncol = 1)+
+  theme_bw()+
+  theme(strip.text = element_text(size = 14, colour = "black", face = "bold"))
 p
 
 ggsave(plot = p, filename = "T_cells_per_donor_umap.png", dpi = 500,
-       height = 6, width = 12)
+       height = 9, width = 6)
 
 
 #marker boxplot expression
