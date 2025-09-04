@@ -414,21 +414,23 @@ ggplot(neut.data2, aes(x = k16, y = expression, fill = k16))+geom_violin(scale =
 
 
 
-p <- ggplot(neut.data, aes(x = UMAP_1, y = UMAP_2, colour=k16))+geom_scattermore()+
-  scale_colour_manual(values = c(cluster.palette,col_vector))+facet_wrap(~patient)+
+p <- ggplot(neut.data, aes(x = UMAP_1, y = UMAP_2, colour=k5))+geom_scattermore(pointsize = 2)+
+  scale_colour_manual(values = c("indianred2", "steelblue2", "mediumseagreen", "orange", "hotpink"))+facet_wrap(~donor)+
   theme_bw()
 p
 
-ggsave(plot = p, filename = "toal.neuts.umap.png", dpi = 500,
+ggsave(plot = p, filename = "T_cells_per_donor_umap.png", dpi = 500,
        height = 6, width = 12)
 
 
 #marker boxplot expression
 
+k5_cols <- c("indianred2", "steelblue2", "mediumseagreen", "orange", "hotpink")
+
 neut.data2 <- pivot_longer(neut.data, names_to = "marker", values_to = "expression", 1:14)
 
-p <- ggplot(neut.data2, aes(x = k10, y = expression, fill = k10))+geom_boxplot(outlier.shape = NA)+
-  theme_bw()+scale_fill_manual(values = old.cluster.palette)+facet_wrap(~marker, scales = "free_y", ncol = 7)+
+p <- ggplot(neut.data2, aes(x = k5, y = expression, fill = k5))+geom_boxplot(outlier.shape = NA)+
+  theme_bw()+scale_fill_manual(values = k5_cols)+facet_wrap(~marker, scales = "free_y", ncol = 7)+
   theme(strip.text = element_text(size = 12, colour = "black", face = "bold"))+
   theme(legend.position = "none")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 14))
@@ -438,7 +440,8 @@ ggsave(plot = p, filename = "cluster.boxplot.expression.png", dpi = 500,
        height = 4, width = 12)
 
 #violin
-p.violin <- ggplot(neut.data2, aes(x = k10, y = expression, fill = k10))+geom_violin(scale = "width", trim = T)+
+neut.data3 <- filter(neut.data2, !marker %in% c("Live_dead", "CD4", "CD15"))
+p.violin <- ggplot(neut.data3, aes(x = k5, y = expression, fill = k5))+geom_violin(scale = "width", trim = T)+
   facet_grid(rows = vars(marker), scales = "free", switch = "y")+theme_cowplot()+
   scale_y_continuous(expand = c(0, 0), position="right", labels = function(x)
     c(rep(x = "", times = length(x)-2), x[length(x) - 1], ""))+
@@ -448,16 +451,14 @@ p.violin <- ggplot(neut.data2, aes(x = k10, y = expression, fill = k10))+geom_vi
         strip.background = element_blank(),
         strip.text = element_text(face = "bold"),
         strip.text.y.left = element_text(angle = 0, size = 14))+
-  scale_fill_manual(values = old.cluster.palette)+
+  scale_fill_manual(values = k5_cols)+
   theme(axis.text.x = element_text(size = 14, colour = "black", angle = 45, hjust = 1))
 p.violin
 
-ggsave(plot = p.violin, filename = "cluster.violin.png", dpi = 500,
-       height = 16, width = 12)
+ggsave(plot = p.violin, filename = "k5.violin.png", dpi = 500,
+       height = 14, width = 8, bg = "white")
 
 #marker expression over time
-
-
 
 ggplot(filter(neut.data2, marker %in% c("CD62L", "CD11b")), 
        aes(x = time, y = expression, fill = time))+geom_boxplot(outlier.shape = NA)+
@@ -526,25 +527,27 @@ ggsave(plot = p.violin, filename = "violin.plot.annotated.png", dpi = 500, bg = 
 
 
 #proportions total
-proportions <- neut.data %>% group_by(labels, time, patient) %>% dplyr::count(labels, time, patient)
-proportions <- pivot_wider(proportions, names_from = labels, values_from = n)
+proportions <- neut.data %>% group_by(k10, neut, ratio, donor) %>% dplyr::count(k10, neut, ratio, donor)
+proportions <- pivot_wider(proportions, names_from = k10, values_from = n)
 proportions[is.na(proportions)] <- 0
-proportions <- pivot_longer(proportions, names_to = "cluster", values_to = "number", 3:9)
+proportions <- pivot_longer(proportions, names_to = "cluster", values_to = "number", 4:13)
 proportions <- proportions
 
-p1 <- ggplot(proportions, aes(x = time, y = number, fill = cluster))+geom_col(position = "dodge")+theme_bw()+
-  scale_fill_manual(values = cluster.palette)+facet_wrap(~patient)+
+proportions$neut <- factor(proportions$neut, levels = c("none", "young", "mature", "aged"))
+
+p1 <- ggplot(proportions, aes(x = neut, y = number, fill = cluster))+geom_col(position = "dodge")+theme_bw()+
+  scale_fill_manual(values = old.cluster.palette)+facet_wrap(~donor)+
   scale_y_continuous(expand = c(0,0), limits = c(0,100000))+
   theme(axis.text = element_text(size = 12, colour = "black"))+xlab("Patient")+ylab("absolute number of cells")
 p1
 
-p2 <- ggplot(proportions, aes(x = time, y = number, fill = cluster))+geom_col(position = "fill")+theme_bw()+
-  scale_fill_manual(values = cluster.palette)+facet_wrap(~patient, scales = "free")+
+p2 <- ggplot(proportions, aes(x = neut, y = number, fill = cluster))+geom_col(position = "fill")+theme_bw()+
+  scale_fill_manual(values = old.cluster.palette)+facet_wrap(~donor, scales = "free")+
   theme(axis.text = element_text(size = 12, colour = "black"))+xlab(NULL)+ylab("% of cells")
 p2
 
 combo <- p1+p2+plot_layout(ncol = 2)
-
+combo
 ggsave(plot = combo, filename = "neutrophil.numbers.proportions.png", dpi = 500,
        height = 5, width = 10)
 #stacked bar plot of proportions
