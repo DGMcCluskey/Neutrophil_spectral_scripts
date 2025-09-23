@@ -41,7 +41,7 @@ library(ggbump)
 ```
 
 ```{r}
-setwd("C:/Users/dan94/OneDrive - University College London/UCL_Senior_Research_Fellow/Neutrophil_lipids/GSK_3uM")
+setwd("C:/Users/dan94/OneDrive - University College London/UCL_Senior_Research_Fellow/Neutrophil_lipids/GSK_3uM_updated/")
 ```
 
 ## load in FCS files and create flowset object
@@ -51,7 +51,31 @@ fcs <- list.files(pattern = ".fcs$")
 fcs
 fs <- read.flowSet(fcs, transformation = F, truncate_max_range = F)
 ```
+
+## check columns (fluorophores)
+## remove any not needed
+## when running for the first time, save the columns into an excel to form the basis of the fluorophore metadata
+## if this has been created before, just load it in
+
 ```{r}
-f1 <- read.FCS("rep1_DMSO_6h WLSM_Single Cells1.fcs", transformation = FALSE)
-f2 <- read.FCS("rep1_DMSO_22h WLSM_Single Cells1.fcs", transformation = FALSE)
+all_cols <- colnames(fs)
+all_cols
+fs <- fs[,-c(1,2)]
+colnames(fs)
+cols <- colnames(fs)
+cols <- as.data.frame(cols)
+#write.csv(cols, file = "Marker.metadata.csv")
+markers <- read.csv("Marker.metadata.csv")
+markers
+```
+
+## use the file names as the basis for the sample metadata
+## in excel add the additional information requireed
+## if script run previously then just load it in
+```{r}
+#make sample metadata
+#save list of file names and then edit in excel and reload in
+names <- data.frame(fcs)
+#write.csv(names, file = "sample.metadata.csv")
+samples <- read.csv("sample.metadata.csv")
 ```
