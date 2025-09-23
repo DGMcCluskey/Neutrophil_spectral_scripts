@@ -1,0 +1,57 @@
+---
+title: "Untitled"
+format: html
+---
+
+## Analysis of neutrophil subsets after lipid treatment
+
+```{r}
+library(CATALYST)
+library(harmony)
+library(cowplot)
+library(flowCore)
+library(scater)
+library(SingleCellExperiment)
+library(viridis)
+library(RColorBrewer)
+library(ggforce)
+library(ggplot2)
+library(ggrepel)
+library(ggsci)
+library(data.table)
+library(emmeans)
+library(dplyr)
+library(tidyr)
+library(ggsignif)
+library(rstatix)
+library(multcomp)
+library(scales)
+library(ggthemes)
+library(slingshot)
+library(ggbeeswarm)
+library(ggbreak)
+library(DescTools)
+library(pak)
+library(gghighlight)
+library(scattermore)
+library(clustree)
+library(gridExtra)
+library(patchwork)
+library(ggbump)
+```
+
+```{r}
+setwd("C:/Users/dan94/OneDrive - University College London/UCL_Senior_Research_Fellow/Neutrophil_lipids/GSK_3uM")
+```
+
+## load in FCS files and create flowset object
+### list fcs files in folder, choose ones required and then run read.flowset
+```{r}
+fcs <- list.files(pattern = ".fcs$")
+fcs
+fs <- read.flowSet(fcs, transformation = F, truncate_max_range = F)
+```
+```{r}
+f1 <- read.FCS("rep1_DMSO_6h WLSM_Single Cells1.fcs", transformation = FALSE)
+f2 <- read.FCS("rep1_DMSO_22h WLSM_Single Cells1.fcs", transformation = FALSE)
+```
