@@ -73,8 +73,6 @@ markers
 ## in excel add the additional information requireed
 ## if script run previously then just load it in
 ```{r}
-#make sample metadata
-#save list of file names and then edit in excel and reload in
 names <- data.frame(fcs)
 #write.csv(names, file = "sample.metadata.csv")
 samples <- read.csv("sample.metadata.csv")
