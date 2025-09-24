@@ -81,3 +81,24 @@ sample_df <- separate(sample_df, col = sample_id, into = c("donor", "treatment",
 write.csv(sample_df, file = "sample.metadata.csv")
 samples <- read.csv("sample.metadata.csv")
 ```
+
+## check channels from the flowest and markers metadata match
+## make the singlecellexperiment object - here is where you set your cofactor values
+### thse can be assessed afterwards and this part can be re-done until the settings look correct
+```{r}
+setdiff(colnames(fs), markers$fluorophore)
+colnames(fs)
+fs
+setdiff(fcs, samples$file_name)
+
+sce.custom <- prepData(x = fs, panel = markers, md = samples, FACS = T, transform = T, 
+  cofactor = c("AF700-A" = 1000, "BUV563-A" = 1000, "BV421-A" = 3000,"BV510-A" = 2000, 
+  "BV605-A" = 1000, "BV650-A" = 1000, "BV711-A" = 1000, "FITC-A" = 1000, "PE-A" = 1000, 
+  "PE-CF594-A" = 5000, "PE-Fire640-A" = 1000, "PerCP-Cy5.5-A" = 1000, "SparkUV-387-A" = 3000,
+"Zombie-NIR-A" = 500), 
+  panel_cols = list(channel = "fluorophore", antigen = "antigen"),
+  md_cols = list(file = "file_name", id = "sample_id",
+  factors = c("donor_id", "neut", "ratio")))
+
+table(sce.custom$sample_id)
+```
