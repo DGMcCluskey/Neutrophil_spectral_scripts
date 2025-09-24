@@ -38,6 +38,7 @@ library(clustree)
 library(gridExtra)
 library(patchwork)
 library(ggbump)
+library(stringr)
 ```
 
 ```{r}
@@ -70,10 +71,13 @@ markers
 ```
 
 ## use the file names as the basis for the sample metadata
-## in excel add the additional information requireed
+## first add a column to make the sample id (removes excess characters at end of each fcs file name)
+## use separate to add individual metadata features
 ## if script run previously then just load it in
 ```{r}
 names <- data.frame(fcs)
-#write.csv(names, file = "sample.metadata.csv")
+sample_df <- names %>% mutate(sample_id = str_sub(fcs, 1, -24))
+sample_df <- separate(sample_df, col = sample_id, into = c("donor", "treatment", "time"), remove = F)
+write.csv(sample_df, file = "sample.metadata.csv")
 samples <- read.csv("sample.metadata.csv")
 ```
