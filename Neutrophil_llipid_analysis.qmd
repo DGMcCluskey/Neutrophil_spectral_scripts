@@ -79,7 +79,7 @@ markers
 ```{r}
 names <- data.frame(fcs)
 sample_df <- names %>% mutate(sample_id = str_sub(fcs, 1, -24))
-sample_df <- separate(sample_df, col = sample_id, into = c("donor", "treatment", "time"), remove = F)
+sample_df <- separate(sample_df, col = sample_id, into = c("donor", "treatment", "time"), remove = F, sep = "_")
 write.csv(sample_df, file = "sample.metadata.csv")
 samples <- read.csv("sample.metadata.csv")
 ```
@@ -129,6 +129,17 @@ sce <- downsample(sce, sample_col = "sample_id", proportion = 0.1)
 numbers_after <- table(sce$sample_id)
 ```
 
+## run batch correction using harmony - for this type of data i'm correcting on donor as each donor is processed, stained and run on separate occassions
+```{r}
+expdata <- sce@assays@data$exprs
+meta <- sce@colData$donor
+expdata <- t(expdata)
+nrow(expdata)
+nrow(meta)
+harmony_output <- HarmonyMatrix(expdata, meta_data = meta, do_pca = F)
+sce@assays@data$uncorrected <- sce@assays@data$exprs
+sce@assays@data$exprs <- t(harmony_output)
+```
 ## cluster, assess elbow plot
 ```{r}
 set.seed(61)
@@ -146,4 +157,35 @@ ggplot(delta, aes(x = k, y = y))+geom_point(size = 5)+geom_line(linewidth = 1.5)
 ## create UMAP
 ```{r}
 sce <- runDR(sce, "UMAP", features = NULL)
+```
+
+## this is a good point to save the object as the runDR takes a while, so we will load back in from here if needed
+```{r}
+
+```
+
+## before checking resolutions, plot umap by donor, treatment and time to see if any of these factors split it
+```{r}
+variables <- c("donor", "treatment", "time")
+umaps <- list()
+for (i in variables) {
+umaps[[i]] <- plotDR(sce, "UMAP", color_by = i)+theme_bw()+
+    geom_scattermore()
+} 
+p <- plot_grid(umaps$donor, umaps$treatment, umaps$time)
+p
+```
+
+## if it looks reasonable (i.e doesn't split by donor, suggesting batche effect) start assessing the resolution (also known as meta or k)
+```{r}
+res <- c("meta10", "meta12", "meta15", "meta20")
+umaps <- list()
+
+for (i in res) {
+umaps[[i]] <- plotDR(sce, "UMAP", color_by = i)+theme_bw()+
+    geom_scattermore()
+} 
+
+p <- plot_grid(umaps$meta10, umaps$meta12, umaps$meta15, umaps$meta20)
+
 ```
