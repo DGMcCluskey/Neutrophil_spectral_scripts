@@ -195,7 +195,46 @@ ggsave(plot = p1, filename = "umaps_resolution_comparison.png", dpi = 500,
 height = 6, width = 16)
 
 markers.input <- markers$antigen
-p2 <- plotDR(sce, color_by = markers.input)
+p2 <- plotDR(sce, color_by = markers.input)+theme_bw()
 ggsave(plot = p2, filename = "umap_all_markers.png", dpi = 500,
-height = 16, width = 16)
+height = 16, width = 16, bg = "white")
+```
+
+## a resolution of k10 looks appropriate, so plotting that in more detail
+```{r}
+p1 <- plotDR(sce, color_by = "meta10")
+p1
+```
+
+## before annotation, we will briefly assess if treatment/time affect cluster proportions
+## add k10 as a metadata column so that this can be used (add more here if required)
+## then we pull out the data and make it into a dataframe, which is then easy to use for plotting
+```{r}
+sce$k10 <- cluster_ids(sce, "meta10")
+
+ex <- assay(sce, "exprs")
+neut.data <- data.frame(t(ex), sample_id = sce$sample_id, donor = sce$donor, 
+                        treatment = sce$treatment, time = sce$time, 
+                        k10 = sce$k10)
+#add umap dimensions
+umap.coords <- data.frame(reducedDim(sce, "UMAP"))
+neut.data$UMAP_1 <- umap.coords$UMAP1
+neut.data$UMAP_2 <- umap.coords$UMAP2
+```
+
+## plot proportions
+```{r}
+proportions <- neut.data %>% group_by(k10, treatment, time, donor) %>% dplyr::count(k10, treatment, time, donor)
+proportions <- pivot_wider(proportions, names_from = k10, values_from = n)
+proportions[is.na(proportions)] <- 0
+proportions <- pivot_longer(proportions, names_to = "cluster", values_to = "number", 4:13)
+p1 <- ggplot(proportions, aes(x = time, y = number, fill = cluster))+geom_col(position = "dodge")+theme_bw()+
+  scale_fill_manual(values = )+facet_wrap(~treatment, scales = "free_x", ncol = 4)+
+  scale_y_continuous(expand = c(0,0), limits = c(0,100000))+
+  theme(axis.text = element_text(size = 12, colour = "black"))+xlab("Patient")+ylab("absolute number of cells")+
+  theme(axis.text.x = element_text(size = 12, colour = "black", angle = 45, hjust = 1))+
+  theme(strip.text = element_text(size = 14, colour = "black", face = "bold"))+
+  theme(axis.title = element_text(size = 16, colour = "black", face = "bold"))+
+  xlab("neutrophil:T cell ratio")+ylim(0,75000)
+p1
 ```
