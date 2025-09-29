@@ -161,7 +161,7 @@ sce <- runDR(sce, "UMAP", features = NULL)
 
 ## this is a good point to save the object as the runDR takes a while, so we will load back in from here if needed
 ```{r}
-
+saveRDS(sce, file = "neut_lipids_angela.rds", compress = F)
 ```
 
 ## before checking resolutions, plot umap by donor, treatment and time to see if any of these factors split it
@@ -177,8 +177,10 @@ p
 ```
 
 ## if it looks reasonable (i.e doesn't split by donor, suggesting batche effect) start assessing the resolution (also known as meta or k)
+### here i use the previously generated delta plot to get an idea of what an appropriate k might be - i then also "over-cluster" on purpose
+## i also plot the expression of all markers in the umap. whilst this is computationally intensive and takes a while, it is worth it as it allows us to see if a marker is expressed across clusters or is distinct to one cluster
 ```{r}
-res <- c("meta10", "meta12", "meta15", "meta20")
+res <- c("meta7", "meta10", "meta12", "meta15")
 umaps <- list()
 
 for (i in res) {
@@ -186,6 +188,14 @@ umaps[[i]] <- plotDR(sce, "UMAP", color_by = i)+theme_bw()+
     geom_scattermore()
 } 
 
-p <- plot_grid(umaps$meta10, umaps$meta12, umaps$meta15, umaps$meta20)
+p1 <- plot_grid(umaps$meta7, umaps$meta10, umaps$meta12, umaps$meta15)
+p1
 
+ggsave(plot = p1, filename = "umaps_resolution_comparison.png", dpi = 500,
+height = 6, width = 16)
+
+markers.input <- markers$antigen
+p2 <- plotDR(sce, color_by = markers.input)
+ggsave(plot = p2, filename = "umap_all_markers.png", dpi = 500,
+height = 16, width = 16)
 ```
