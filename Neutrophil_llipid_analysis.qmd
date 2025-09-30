@@ -39,6 +39,7 @@ library(gridExtra)
 library(patchwork)
 library(ggbump)
 library(stringr)
+library(grid)
 ```
 
 ```{r}
@@ -56,8 +57,11 @@ fs <- read.flowSet(fcs, transformation = F, truncate_max_range = F)
 ```
 
 ## check columns (fluorophores)
+
 ## remove any not needed
+
 ## when running for the first time, save the columns into an excel to form the basis of the fluorophore metadata
+
 ## if this has been created before, just load it in
 
 ```{r}
@@ -73,9 +77,13 @@ markers
 ```
 
 ## use the file names as the basis for the sample metadata
+
 ## first add a column to make the sample id (removes excess characters at end of each fcs file name)
+
 ## use separate to add individual metadata features
+
 ## if script run previously then just load it in
+
 ```{r}
 names <- data.frame(fcs)
 sample_df <- names %>% mutate(sample_id = str_sub(fcs, 1, -24))
@@ -85,8 +93,11 @@ samples <- read.csv("sample.metadata.csv")
 ```
 
 ## check channels from the flowest and markers metadata match
+
 ## make the singlecellexperiment object - here is where you set your cofactor values
+
 ### these can be assessed afterwards and this part can be re-done until the settings look correct
+
 ```{r}
 setdiff(colnames(fs), markers$fluorophore)
 setdiff(fcs, samples$fcs)
@@ -105,8 +116,11 @@ rm(sce.custom)
 ```
 
 ## downsample, as most of the time we have millions of cells
+
 ### not only computationaly limiting, but not really needed
+
 ### this function is from chatgpt, but seems to work well
+
 ```{r}
 downsample <- function(sce, sample_col = "sample_id", proportion = 0.1, min_cells = 10) {
   # Get sample labels
@@ -130,6 +144,7 @@ numbers_after <- table(sce$sample_id)
 ```
 
 ## run batch correction using harmony - for this type of data i'm correcting on donor as each donor is processed, stained and run on separate occassions
+
 ```{r}
 expdata <- sce@assays@data$exprs
 meta <- sce@colData$donor
@@ -140,7 +155,9 @@ harmony_output <- HarmonyMatrix(expdata, meta_data = meta, do_pca = F)
 sce@assays@data$uncorrected <- sce@assays@data$exprs
 sce@assays@data$exprs <- t(harmony_output)
 ```
+
 ## cluster, assess elbow plot
+
 ```{r}
 set.seed(61)
 sce <- CATALYST::cluster(sce, features = NULL, xdim = 10, ydim = 10, maxK = 30, verbose = T, seed = 61)
@@ -155,16 +172,19 @@ ggplot(delta, aes(x = k, y = y))+geom_point(size = 5)+geom_line(linewidth = 1.5)
 ```
 
 ## create UMAP
+
 ```{r}
 sce <- runDR(sce, "UMAP", features = NULL)
 ```
 
 ## this is a good point to save the object as the runDR takes a while, so we will load back in from here if needed
+
 ```{r}
 saveRDS(sce, file = "neut_lipids_angela.rds", compress = F)
 ```
 
 ## before checking resolutions, plot umap by donor, treatment and time to see if any of these factors split it
+
 ```{r}
 variables <- c("donor", "treatment", "time")
 umaps <- list()
@@ -177,8 +197,11 @@ p
 ```
 
 ## if it looks reasonable (i.e doesn't split by donor, suggesting batche effect) start assessing the resolution (also known as meta or k)
+
 ### here i use the previously generated delta plot to get an idea of what an appropriate k might be - i then also "over-cluster" on purpose
+
 ## i also plot the expression of all markers in the umap. whilst this is computationally intensive and takes a while, it is worth it as it allows us to see if a marker is expressed across clusters or is distinct to one cluster
+
 ```{r}
 res <- c("meta7", "meta10", "meta12", "meta15")
 umaps <- list()
@@ -201,40 +224,99 @@ height = 16, width = 16, bg = "white")
 ```
 
 ## a resolution of k10 looks appropriate, so plotting that in more detail
+
 ```{r}
-p1 <- plotDR(sce, color_by = "meta10")
+p1 <- plotDR(sce, color_by = "meta10")+scale_colour_brewer(palette = "Paired")
 p1
+p2 <- plotDR(sce, color_by = "meta10")+facet_wrap(~meta10)+scale_colour_brewer(palette = "Paired")
+p2
 ```
 
-## before annotation, we will briefly assess if treatment/time affect cluster proportions
+## make a crude annotation joins up tiny clusters into the large one for simplicity (this will be refined later)
+## also going to filter out tiny clusters for the sake of this preliminary analysis
+```{r}
+sce <- filterSCE(sce, k = "meta10", cluster_id %in% c("1", "2", "3", "4", "6", "7", "8", "9"))
+merging.table <- data.frame("original" = c(1,2,3,4,6,7,8,9), "labels" = c("1", "2", "2", "4", "6", "6", "6", "6"))
+
+sce <- mergeClusters(sce, k = "meta10", table = merging.table, id = "labels", overwrite = T)
+
+sce$labels <- cluster_ids(sce, k = "labels")
+```
+
+## before full annotation, we will briefly assess if treatment/time affect cluster proportions
 ## add k10 as a metadata column so that this can be used (add more here if required)
 ## then we pull out the data and make it into a dataframe, which is then easy to use for plotting
+
 ```{r}
 sce$k10 <- cluster_ids(sce, "meta10")
 
 ex <- assay(sce, "exprs")
 neut.data <- data.frame(t(ex), sample_id = sce$sample_id, donor = sce$donor, 
                         treatment = sce$treatment, time = sce$time, 
-                        k10 = sce$k10)
+                        k10 = sce$k10, labels = sce$labels)
 #add umap dimensions
 umap.coords <- data.frame(reducedDim(sce, "UMAP"))
 neut.data$UMAP_1 <- umap.coords$UMAP1
 neut.data$UMAP_2 <- umap.coords$UMAP2
 ```
 
-## plot proportions
+## plot proportions as a stacked bar plot
+## then export proportions as a csv file
+
 ```{r}
-proportions <- neut.data %>% group_by(k10, treatment, time, donor) %>% dplyr::count(k10, treatment, time, donor)
-proportions <- pivot_wider(proportions, names_from = k10, values_from = n)
+proportions <- neut.data %>% group_by(labels, treatment, time) %>% dplyr::count(labels, treatment, time)
+proportions <- pivot_wider(proportions, names_from = labels, values_from = n)
 proportions[is.na(proportions)] <- 0
-proportions <- pivot_longer(proportions, names_to = "cluster", values_to = "number", 4:13)
-p1 <- ggplot(proportions, aes(x = time, y = number, fill = cluster))+geom_col(position = "dodge")+theme_bw()+
-  scale_fill_manual(values = )+facet_wrap(~treatment, scales = "free_x", ncol = 4)+
-  scale_y_continuous(expand = c(0,0), limits = c(0,100000))+
-  theme(axis.text = element_text(size = 12, colour = "black"))+xlab("Patient")+ylab("absolute number of cells")+
-  theme(axis.text.x = element_text(size = 12, colour = "black", angle = 45, hjust = 1))+
-  theme(strip.text = element_text(size = 14, colour = "black", face = "bold"))+
-  theme(axis.title = element_text(size = 16, colour = "black", face = "bold"))+
-  xlab("neutrophil:T cell ratio")+ylim(0,75000)
+proportions$total = rowSums(proportions[, c(3:6)])
+proportions <- pivot_longer(proportions, names_to = "cluster", values_to = "number", 3:6)
+proportions$prop <- (proportions$number/proportions$total)*100
+proportions$time <- factor(proportions$time, levels = c("0h", "6h", "22h"))
+p1 <- ggplot(proportions, aes(x = time, y = prop, fill = cluster))+geom_col()+theme_bw()+
+  facet_wrap(~treatment, scales = "free_x", ncol = 1)+
+  theme(axis.text = element_text(size = 12, colour = "black"))+theme(strip.text=element_text(size = 14, colour = "black", face = "bold"))
 p1
+ggsave(plot=p1, filename = "cluster_proportions_barplot.png", dpi = 500, height = 14, width = 4)
+
+table_input <- proportions[, c(1,2,4,6)]
+table_input <- pivot_wider(table_input, names_from = "time", values_from = "prop")
+write.csv(table_input, file="proportions.table.csv")
+```
+
+## plotting umaps split by treatment+time for visualisation
+```{r}
+neut.data$time <- factor(neut.data$time, levels = c("0h", "6h", "22h"))
+neut.data$treatment <- factor(neut.data$treatment, levels = c("Non-treated", "DiHOME", "EpOME", "GSK", "GSK+EpOME", "DMSO", "MA", "DMSO+MA"))
+neut_baseline <- filter(neut.data, time %in% "0h")
+neut_later <- filter(neut.data, time %in% c("6h", "22h"))
+
+p1 <- ggplot(neut_baseline, aes(x = UMAP_1, y = UMAP_2, colour = labels))+geom_scattermore(pointsize = 2)+theme_bw()+
+  facet_wrap(~treatment+time)+theme(strip.text=element_text(size = 14, colour = "black", face = "bold"))
+p1
+ggsave(plot = p1, filename = "umap_time+treatment_baseline.png", dpi = 500, height = 3, width = 4)
+
+p2 <- ggplot(neut_later, aes(x = UMAP_1, y = UMAP_2, colour = labels))+geom_scattermore(pointsize = 2)+theme_bw()+
+  facet_wrap(~treatment+time, ncol = 2)+theme(strip.text=element_text(size = 14, colour = "black", face = "bold"))
+p2
+ggsave(plot = p2, filename = "umap_time+treatment_6_22.png", dpi = 500, height = 14, width = 6)
+```
+
+##  violin of marker expression
+```{r}
+marker_df <- neut.data[, c(1:22,28)]
+marker_df <- pivot_longer(marker_df, names_to = "marker", values_to = "expression", cols = 1:22)
+
+p.violin <- ggplot(marker_df, aes(x = labels, y = expression, fill = labels))+geom_violin(scale = "width", trim = T)+
+  facet_grid(rows = vars(marker), scales = "free", switch = "y")+theme_cowplot()+
+  scale_y_continuous(expand = c(0, 0), position="right", labels = function(x)
+    c(rep(x = "", times = length(x)-2), x[length(x) - 1], ""))+
+  theme(legend.position = "none", panel.spacing = unit(0, "lines"),
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(fill = NA, color = "black"),
+        strip.background = element_blank(),
+        strip.text = element_text(face = "bold"),
+        strip.text.y.left = element_text(angle = 0, size = 14))+
+  theme(axis.text.x = element_text(size = 14, colour = "black", angle = 45, hjust = 1))
+p.violin
+ggsave(plot=p.violin, filename = "violin_expression.png", dpi = 500,
+height = 16, width = 6, bg = "white")
 ```
